@@ -69,17 +69,22 @@ def render_contacts_text(data: dict) -> str:
                 lines.append(f"• <b>{name}:</b> {value}")
     return "\n".join(lines)
 
-# -------- КЛАВИАТУРЫ --------
+# -------- КЛАВИАТУРЫ (створюємо відразу з масивами) --------
 def main_menu() -> ReplyKeyboardMarkup:
-    kb = ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add(KeyboardButton("📞 Контакты"))
-    kb.add(KeyboardButton("↩️ Назад в канал"))
-    return kb
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📞 Контакты")],
+            [KeyboardButton(text="↩️ Назад в канал")],
+        ],
+        resize_keyboard=True
+    )
 
 def back_inline_kb(url: str) -> InlineKeyboardMarkup:
-    kb = InlineKeyboardMarkup()
-    kb.add(InlineKeyboardButton("🔙 Вернуться в канал", url=url))
-    return kb
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Вернуться в канал", url=url)]
+        ]
+    )
 
 # -------- ХЕНДЛЕРЫ --------
 dp = Dispatcher()
@@ -116,7 +121,7 @@ async def fallback(message: Message):
 async def main():
     bot = Bot(
         token=BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)  # <-- новий спосіб
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     await dp.start_polling(bot, allowed_updates=["message"])
 
