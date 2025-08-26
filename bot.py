@@ -16,7 +16,7 @@ from aiogram.types import (
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-# Локально підхопимо .env (якщо є python-dotenv)
+# Локально підхопимо .env (якщо встановлено python-dotenv)
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -42,6 +42,7 @@ BASE_DIR = Path(__file__).parent
 DATA_FILE = BASE_DIR / "data.json"
 
 def load_contacts() -> dict:
+    """Загружаем контактные данные из data.json"""
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -53,6 +54,7 @@ def load_contacts() -> dict:
         return {"title": "Контактная информация", "items": []}
 
 def render_contacts_text(data: dict) -> str:
+    """Рендерим текст контактов с кликабельными ссылками"""
     lines = [f"<b>{data.get('title','Контактная информация')}</b>", ""]
     for item in data.get("items", []):
         name = item.get("name", "")
@@ -63,13 +65,14 @@ def render_contacts_text(data: dict) -> str:
         if url:
             lines.append(f"• <b>{name}:</b> <a href='{url}'>{value or url}</a>")
         else:
+            # Телефон сделаем кликабельным через tel:
             if name.lower().startswith("тел") and value:
                 lines.append(f"• <b>{name}:</b> <a href='tel:{value}'>{value}</a>")
             else:
                 lines.append(f"• <b>{name}:</b> {value}")
     return "\n".join(lines)
 
-# -------- КЛАВИАТУРЫ (створюємо відразу з масивами) --------
+# -------- КЛАВИАТУРЫ (инициализируем сразу с массивами) --------
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -97,6 +100,7 @@ async def on_start(message: Message):
     )
     await message.answer(text, reply_markup=main_menu())
 
+# Ловим любые сообщения, где есть «контакт»
 @dp.message(F.text.lower().contains("контакт"))
 async def show_contacts(message: Message):
     data = load_contacts()
@@ -106,6 +110,7 @@ async def show_contacts(message: Message):
         link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
+# Ловим «назад»
 @dp.message(F.text.lower().contains("назад"))
 async def back_to_channel(message: Message):
     await message.answer(
@@ -113,6 +118,7 @@ async def back_to_channel(message: Message):
         reply_markup=back_inline_kb(CHANNEL_URL)
     )
 
+# Фолбек
 @dp.message()
 async def fallback(message: Message):
     await message.answer("Воспользуйтесь кнопками ниже 👇", reply_markup=main_menu())
@@ -123,6 +129,9 @@ async def main():
         token=BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
+    # ВАЖНО: сбрасываем вебхук перед polling, иначе будет Conflict getUpdates
+    await bot.delete_webhook(drop_pending_updates=True)
+
     await dp.start_polling(bot, allowed_updates=["message"])
 
 if __name__ == "__main__":
