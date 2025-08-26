@@ -1,21 +1,21 @@
 import os
 import json
+import asyncio
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
-from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiogram.client.default import DefaultBotProperties
-
-# Завантажуємо змінні з .env
+from aiohttp import web
 from dotenv import load_dotenv
-load_dotenv()
 
+# ---------------- Завантаження змінних ---------------- #
+load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_URL = os.getenv("CHANNEL_URL", "https://t.me/your_channel")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 
-# Ініціалізація бота
+# ---------------- Ініціалізація ---------------- #
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
@@ -43,7 +43,7 @@ def load_contacts():
     with open("data.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
-# ---------------- Стартове повідомлення ---------------- #
+# ---------------- Старт ---------------- #
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     caption = (
@@ -52,24 +52,16 @@ async def start_cmd(message: Message):
     )
 
     local_path = "assets/Frame81.png"
-    backup_url = "https://i.imgur.com/3ZQ3ZyK.png"  # 👉 заміни на свою URL-картинку
+    backup_url = "https://i.imgur.com/3ZQ3ZyK.png"
 
     try:
         if os.path.exists(local_path):
             with open(local_path, "rb") as photo:
-                await message.answer_photo(
-                    photo=photo,
-                    caption=caption,
-                    reply_markup=main_menu("ru")
-                )
+                await message.answer_photo(photo=photo, caption=caption, reply_markup=main_menu("ru"))
         else:
-            await message.answer_photo(
-                photo=backup_url,
-                caption=caption,
-                reply_markup=main_menu("ru")
-            )
+            await message.answer_photo(photo=backup_url, caption=caption, reply_markup=main_menu("ru"))
     except Exception as e:
-        await message.answer("⚠️ Ошибка при загрузке изображения")
+        await message.answer(⚠️ Ошибка при загрузке изображения")
         print(f"Image error: {e}")
 
 # ---------------- Кнопки ---------------- #
@@ -90,8 +82,29 @@ async def back_to_channel(message: Message):
         reply_markup=back_inline_kb(CHANNEL_URL)
     )
 
+# ---------------- Healthcheck сервер ---------------- #
+async def healthcheck(request):
+    return web.Response(text="✅ Bot is running!")
+
+async def start_web_app():
+    app = web.Application()
+    app.router.add_get("/", healthcheck)
+    port = int(os.environ.get("PORT", 10000))  # Render дає PORT
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    print(f"🌍 Web server running on port {port}")
+
 # ---------------- Запуск ---------------- #
+async def main():
+    # Запускаємо фейковий веб-сервер
+    asyncio.create_task(start_web_app())
+
+    # Запускаємо бота
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    import asyncio
-    print("🤖 Бот запущен...")
-    asyncio.run(dp.start_polling(bot))
+    print("🤖 Bot starting...")
+    asyncio.run(main())
