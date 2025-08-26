@@ -11,37 +11,39 @@ from aiogram.types import (
     Message, CallbackQuery,
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
-    LinkPreviewOptions
+    LinkPreviewOptions, FSInputFile
 )
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
+# ---------- ENV ----------
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except Exception:
     pass
 
-# -------- СЕКРЕТЫ --------
 BOT_TOKEN     = os.getenv("BOT_TOKEN")
-CHANNEL_URL   = (os.getenv("CHANNEL_URL") or "").strip()
+CHANNEL_URL   = (os.getenv("CHANNEL_URL") or "").strip() or "https://t.me/"
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+ADMINS_ENV    = (os.getenv("ADMINS") or "").strip()
 
-ADMINS_ENV = (os.getenv("ADMINS") or "").strip()
+# Стартовий банер (твоя картинка)
+# Поклади файл в assets/Frame81.png або зміни шлях нижче через ENV
+START_IMAGE_PATH = os.getenv("START_IMAGE_PATH", "assets/Frame81.png")
+
 ADMINS = {int(x) for x in ADMINS_ENV.split(",") if x.strip().isdigit()}
 
 if not BOT_TOKEN:
-    raise SystemExit("❌ BOT_TOKEN не найден")
-
-if not CHANNEL_URL:
-    CHANNEL_URL = "https://t.me/"
+    raise SystemExit("❌ BOT_TOKEN не найден. Укажи в .env или в Render → Environment.")
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger("bot")
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR  = Path(__file__).parent
 DATA_FILE = BASE_DIR / "data.json"
 
+# ---------- I18N ----------
 USER_LANG: dict[int, str] = {}  # user_id -> 'ru'|'ka'
 
 T = {
@@ -81,22 +83,22 @@ T = {
     },
 }
 
-def get_lang(user_id: int) -> str:
-    return USER_LANG.get(user_id, "ru")
+def get_lang(uid: int) -> str:
+    return USER_LANG.get(uid, "ru")
 
-def set_lang(user_id: int, lang: str):
-    USER_LANG[user_id] = lang if lang in ("ru", "ka") else "ru"
+def set_lang(uid: int, lang: str) -> None:
+    USER_LANG[uid] = lang if lang in ("ru", "ka") else "ru"
 
+# ---------- DATA ----------
 def load_contacts() -> dict:
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict):
-            raise ValueError("bad format")
-        if "items" not in data or not isinstance(data["items"], list):
-            data["items"] = []
-        if "title" not in data or not isinstance(data["title"], str):
-            data["title"] = "Контактная информация"
+            raise ValueError("data.json must be an object")
+        data.setdefault("title", "Контактная информация")
+        items = data.get("items", [])
+        data["items"] = items if isinstance(items, list) else []
         return data
     except Exception as e:
         logger.exception(f"Ошибка чтения {DATA_FILE}: {e}")
@@ -104,10 +106,10 @@ def load_contacts() -> dict:
 
 def render_contacts_text(data: dict) -> str:
     lines = [f"<b>{data.get('title','Контактная информация')}</b>", ""]
-    for item in data.get("items", []):
-        name = str(item.get("name", "")).strip()
-        value = str(item.get("value", "")).strip()
-        url = str(item.get("url", "")).strip() if item.get("url") else ""
+    for it in data.get("items", []):
+        name = str(it.get("name", "")).strip()
+        value = str(it.get("value", "")).strip()
+        url = str(it.get("url", "")).strip() if it.get("url") else ""
         if not name and not value:
             continue
         if url:
@@ -116,6 +118,7 @@ def render_contacts_text(data: dict) -> str:
             lines.append(f"• <b>{name}:</b> {value}")
     return "\n".join(lines)
 
+# ---------- KEYBOARDS ----------
 def main_menu(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -128,22 +131,36 @@ def main_menu(lang: str) -> ReplyKeyboardMarkup:
     )
 
 def back_inline_kb(lang: str, url: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=T[lang]["btn_back_inline"], url=url)]
-        ]
-    )
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=T[lang]["btn_back_inline"], url=url)]
+    ])
 
 def language_picker_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Русский 🇷🇺", callback_data="setlang:ru"),
-                InlineKeyboardButton(text="ქართული 🇬🇪", callback_data="setlang:ka"),
-            ]
-        ]
-    )
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="Русский 🇷🇺", callback_data="setlang:ru"),
+        InlineKeyboardButton(text="ქართული 🇬🇪", callback_data="setlang:ka"),
+    ]])
 
+# ---------- START BANNER ----------
+async def send_start_banner(message: Message, lang: str):
+    """
+    Надсилає тільки картинку-банер (без текстового блоку).
+    Файл береться з START_IMAGE_PATH. Якщо його нема — пропускаємо.
+    """
+    try:
+        file_path = Path(START_IMAGE_PATH)
+        if file_path.is_file():
+            photo = FSInputFile(file_path)
+            await message.answer_photo(
+                photo=photo,
+                reply_markup=back_inline_kb(lang, CHANNEL_URL)
+            )
+        else:
+            logger.warning(f"Стартовий банер не знайдено: {file_path} — пропускаю відправку.")
+    except Exception as e:
+        logger.warning(f"Не вдалося надіслати стартовий банер: {e}")
+
+# ---------- DISPATCHER ----------
 dp = Dispatcher()
 
 @dp.message(CommandStart())
@@ -151,6 +168,10 @@ async def on_start(message: Message):
     if message.from_user.id not in USER_LANG:
         set_lang(message.from_user.id, "ru")
     lang = get_lang(message.from_user.id)
+
+    # 1) титульна картинка
+    await send_start_banner(message, lang)
+    # 2) привітання + меню
     await message.answer(T[lang]["welcome"], reply_markup=main_menu(lang))
 
 @dp.message(F.text.casefold().contains("контакт") | F.text.casefold().contains("კონტაქტ"))
@@ -166,10 +187,7 @@ async def show_contacts(message: Message):
 @dp.message(F.text.casefold().contains("назад") | F.text.casefold().contains("არხში დაბრუნ"))
 async def back_to_channel(message: Message):
     lang = get_lang(message.from_user.id)
-    await message.answer(
-        T[lang]["back_prompt"],
-        reply_markup=back_inline_kb(lang, CHANNEL_URL)
-    )
+    await message.answer(T[lang]["back_prompt"], reply_markup=back_inline_kb(lang, CHANNEL_URL))
 
 @dp.message(F.text.casefold().contains("язык") | F.text.casefold().contains("ენა"))
 async def choose_language(message: Message):
@@ -192,7 +210,7 @@ async def set_language(cb: CallbackQuery):
 async def got_contact(message: Message):
     lang = get_lang(message.from_user.id)
     phone = message.contact.phone_number
-    name = message.contact.first_name or ""
+    name  = message.contact.first_name or ""
     await message.answer(T[lang]["thanks_contact"].format(phone=phone))
     if ADMIN_CHAT_ID and ADMIN_CHAT_ID.strip("-").isdigit():
         try:
@@ -220,6 +238,7 @@ async def fallback(message: Message):
 
 async def main():
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    # Скидаємо вебхук, щоб не було конфлікту getUpdates
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
 
