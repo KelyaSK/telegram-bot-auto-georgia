@@ -1,3 +1,6 @@
-aiogram==2.25.1
-aiohttp==3.12.15
-python-dotenv==1.0.1
+cd C:\TelegramBots\AutoBot
+(
+echo aiogram==2.25.1
+echo aiohttp==3.8.6
+echo python-dotenv==1.0.1
+) > requirements.txt
