@@ -6,14 +6,17 @@ from pathlib import Path
 import asyncio
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.filters import CommandStart
 from aiogram.types import (
+    Message,
     ReplyKeyboardMarkup, KeyboardButton,
-    InlineKeyboardMarkup, InlineKeyboardButton
+    InlineKeyboardMarkup, InlineKeyboardButton,
+    LinkPreviewOptions
 )
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
-# Локально підхопимо .env, якщо є
+# Локально підхопимо .env (якщо є python-dotenv)
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -78,7 +81,7 @@ def back_inline_kb(url: str) -> InlineKeyboardMarkup:
     kb.add(InlineKeyboardButton("🔙 Вернуться в канал", url=url))
     return kb
 
-# -------- ХЕНДЛЕРЫ (aiogram 3) --------
+# -------- ХЕНДЛЕРЫ --------
 dp = Dispatcher()
 
 @dp.message(CommandStart())
@@ -89,17 +92,15 @@ async def on_start(message: Message):
     )
     await message.answer(text, reply_markup=main_menu())
 
-# ловим любые варианты текста, где есть «контакт»
 @dp.message(F.text.lower().contains("контакт"))
 async def show_contacts(message: Message):
     data = load_contacts()
     await message.answer(
         render_contacts_text(data),
         reply_markup=main_menu(),
-        disable_web_page_preview=True
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
-# ловим «назад»
 @dp.message(F.text.lower().contains("назад"))
 async def back_to_channel(message: Message):
     await message.answer(
@@ -107,14 +108,16 @@ async def back_to_channel(message: Message):
         reply_markup=back_inline_kb(CHANNEL_URL)
     )
 
-# фолбек
 @dp.message()
 async def fallback(message: Message):
     await message.answer("Воспользуйтесь кнопками ниже 👇", reply_markup=main_menu())
 
 # -------- ЗАПУСК --------
 async def main():
-    bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)  # <-- новий спосіб
+    )
     await dp.start_polling(bot, allowed_updates=["message"])
 
 if __name__ == "__main__":
