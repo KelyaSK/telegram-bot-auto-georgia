@@ -1,8 +1,15 @@
+cd C:\TelegramBots\AutoBot
+
 git init
 git branch -M main
 git add .
-git commit -m "Initial AutoBot (aiogram v2, Py 3.11)"
+git commit -m "Initial commit: bot with data.json"
 
-REM (якщо попросить ім'я/емейл)
+REM якщо git просить ім’я/емейл:
 git config --global user.name "KelyaSK"
 git config --global user.email "shandife@gmail.com"
+git commit -m "Initial commit: bot with data.json"
+
+REM створіть порожній репозиторій на GitHub (без README)
+git remote add origin https://github.com/KelyaSK/telegram-bot-auto-georgia.git
+git push -u origin main
