@@ -40,8 +40,12 @@ def back_inline_kb(channel_url: str):
 
 # ---------------- Завантаження контактів ---------------- #
 def load_contacts():
-    with open("data.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open("data.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Ошибка загрузки data.json: {e}")
+        return {}
 
 # ---------------- Старт ---------------- #
 @dp.message(Command("start"))
@@ -61,7 +65,7 @@ async def start_cmd(message: Message):
         else:
             await message.answer_photo(photo=backup_url, caption=caption, reply_markup=main_menu("ru"))
     except Exception as e:
-        await message.answer(⚠️ Ошибка при загрузке изображения")
+        await message.answer("⚠️ Ошибка при загрузке изображения")
         print(f"Image error: {e}")
 
 # ---------------- Кнопки ---------------- #
@@ -69,9 +73,9 @@ async def start_cmd(message: Message):
 async def show_contacts(message: Message):
     contacts = load_contacts()
     text = (
-        f"<b>📞 Телефон:</b> {contacts['phone']}\n"
-        f"<b>✉️ Email:</b> {contacts['email']}\n"
-        f"<b>📍 Адрес:</b> {contacts['address']}"
+        f"<b>📞 Телефон:</b> {contacts.get('phone', '—')}\n"
+        f"<b>✉️ Email:</b> {contacts.get('email', '—')}\n"
+        f"<b>📍 Адрес:</b> {contacts.get('address', '—')}"
     )
     await message.answer(text, reply_markup=main_menu("ru"))
 
