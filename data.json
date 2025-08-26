@@ -1,8 +1,10 @@
 {
-  "channel_link": "https://t.me/+Dd3j_Y-l5IpjNTQy",
-  "contacts": {
-    "phone": "+995 555 123456",
-    "email": "info@auto.georgia",
-    "address": "Тбилиси, ул. Авто №10"
-  }
+  "title": "Контактна інформація",
+  "items": [
+    { "name": "Телефон",  "value": "+995555123456" },
+    { "name": "Telegram", "value": "@AutoGeorgiaSupport", "url": "https://t.me/AutoGeorgiaSupport" },
+    { "name": "WhatsApp", "value": "+995555123456",       "url": "https://wa.me/995555123456" },
+    { "name": "Адреса",   "value": "Tbilisi, ул. Руставели, 10" },
+    { "name": "Графік",   "value": "Пн–Сб 10:00–19:00" }
+  ]
 }
