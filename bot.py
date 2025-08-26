@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
+import os
 import json
 import logging
 from pathlib import Path
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from dotenv import load_dotenv
 
-# -------------------------------------------------------------------
-# ВСТАВ СВОЇ ДАНІ
-# -------------------------------------------------------------------
-BOT_TOKEN   = "ВСТАВ_СВІЙ_ТОКЕН"         # токен від BotFather
-CHANNEL_URL = "https://t.me/your_channel" # посилання на твій канал
-# -------------------------------------------------------------------
+# ---------------- Завантажуємо .env локально ----------------
+load_dotenv()
+
+# ---------------- Читаємо секрети зі змінних середовища ----------------
+BOT_TOKEN   = os.getenv("BOT_TOKEN")
+CHANNEL_URL = os.getenv("CHANNEL_URL")
+
+if not BOT_TOKEN:
+    raise SystemExit("❌ Не знайдено BOT_TOKEN. Додай його у .env (локально) або в Environment на Render.")
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger("bot")
@@ -85,5 +90,5 @@ async def fallback(message: types.Message):
 
 # ---------------- Запуск ----------------
 if __name__ == "__main__":
-    logger.info("Бот запущений…")
+    logger.info("✅ Бот запущений…")
     executor.start_polling(dp, skip_updates=True)
