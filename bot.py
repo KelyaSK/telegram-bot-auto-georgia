@@ -7,22 +7,21 @@ from typing import Dict, Any
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import (
-    Message, CallbackQuery,
+    Message,
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
 
-# ====== Константи / ENV ======
+# ---------- Files & ENV ----------
 BASE_DIR = Path(__file__).parent
-BANNER_PATH = BASE_DIR / "assets" / "banner.png"
+BANNER_PATH = BASE_DIR / "assets" / "banner.png"  # універсально для GitHub/Render
 DATA_JSON = BASE_DIR / "data.json"
 CHANNEL_URL = os.getenv("CHANNEL_URL")  # наприклад: https://t.me/your_channel
 
-# Внутрішній «стан» мови користувача (пам’ять у RAM; після рестарту збивається)
-# RU за замовчуванням; 'ru' або 'ka'
+# Пам’ять мови в RAM (на кожен процес). За замовчуванням 'ru'.
 USER_LANG: Dict[int, str] = {}
 
-# ====== Тексти RU/KA ======
+# ---------- Text RU/KA ----------
 TXT = {
     "ru": {
         "start_caption": "👋 Добро пожаловать!\nНажмите «/start» и получите контакты и помощь по авто 🚗",
@@ -36,8 +35,7 @@ TXT = {
         "lang_switched": "Язык переключен на ქართული.",
         "open_channel": "Открыть канал",
         "no_channel": "Ссылка на канал не настроена.",
-        "catalog_empty": "Каталог временно пуст.",
-        "ignored": "",  # нічого не шлемо
+        "placeholder": "Выберите пункт...",
     },
     "ka": {
         "start_caption": "👋 მოგესალმებით!\nდააჭირეთ «/start» და მიიღეთ კონტაქტები და დახმარება ავტომობილებზე 🚗",
@@ -51,25 +49,22 @@ TXT = {
         "lang_switched": "ენა შეიცვალა რუსულზე.",
         "open_channel": "არხის გახსნა",
         "no_channel": "არხის ბმული არ არის მითითებული.",
-        "catalog_empty": "კატალოგი დროებით ცარიელია.",
-        "ignored": "",
+        "placeholder": "აირჩიეთ პუნქტი...",
     },
 }
 
-# Для матчів тексту кнопок приймемо обидві мови
 LABELS = {
     "contacts": {"ru": "📞 Контакты", "ka": "📞 კონტაქტები"},
     "lang": {"ru": "🔁 Сменить язык", "ka": "🔁 ენის შეცვლა"},
     "back_channel": {"ru": "🔙 Назад в канал", "ka": "🔙 არხზე დაბრუნება"},
 }
 
-def lang_of(user_id: int) -> str:
-    """Повертає поточну мову користувача ('ru'|'ka'). За замовчуванням RU."""
-    return USER_LANG.get(user_id, "ru")
+def lang_of(uid: int) -> str:
+    return USER_LANG.get(uid, "ru")
 
-def toggle_lang(user_id: int) -> str:
-    new_lang = "ka" if lang_of(user_id) == "ru" else "ru"
-    USER_LANG[user_id] = new_lang
+def toggle_lang(uid: int) -> str:
+    new_lang = "ka" if lang_of(uid) == "ru" else "ru"
+    USER_LANG[uid] = new_lang
     return new_lang
 
 def read_contacts() -> Dict[str, Any]:
@@ -86,6 +81,7 @@ def read_contacts() -> Dict[str, Any]:
         return {"phone": "—", "email": "—", "address": "—"}
 
 def make_main_kb(lang: str) -> ReplyKeyboardMarkup:
+    t = TXT[lang]
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=LABELS["contacts"][lang])],
@@ -93,30 +89,29 @@ def make_main_kb(lang: str) -> ReplyKeyboardMarkup:
             [KeyboardButton(text=LABELS["back_channel"][lang])],
         ],
         resize_keyboard=True,
-        input_field_placeholder="Выберите пункт..." if lang == "ru" else "აირჩიეთ პუნქტი...",
+        input_field_placeholder=t["placeholder"],
     )
 
 router = Router()
 
-# ====== Хендлери ======
+# ---------- Handlers ----------
 
 @router.message(CommandStart())
 async def on_start(message: Message):
     uid = message.from_user.id
-    # Мова за замовчуванням RU (не міняємо, поки юзер не натисне «Сменить язык»)
-    current = lang_of(uid)
-    kb = make_main_kb(current)
+    lang = lang_of(uid)
+    kb = make_main_kb(lang)
 
-    # 1) Надсилаємо банер (якщо є)
+    # 1) Банер (якщо є)
     if BANNER_PATH.exists():
         await message.answer_photo(
             photo=BANNER_PATH.open("rb"),
-            caption=TXT[current]["start_caption"]
+            caption=TXT[lang]["start_caption"]
         )
     else:
-        await message.answer(TXT[current]["start_caption"])
+        await message.answer(TXT[lang]["start_caption"])
 
-    # 2) Показуємо клавіатуру (прикріплена знизу)
+    # 2) Показати клавіатуру (прикріплена знизу)
     await message.answer(" ", reply_markup=kb)
 
 @router.message(Command("ping"))
@@ -126,40 +121,35 @@ async def on_ping(message: Message):
 @router.message(F.text.in_({LABELS["contacts"]["ru"], LABELS["contacts"]["ka"]}))
 async def on_contacts(message: Message):
     uid = message.from_user.id
-    current = lang_of(uid)
-    t = TXT[current]
-    info = read_contacts()
+    lang = lang_of(uid)
+    t = TXT[lang]
+    c = read_contacts()
     text = (
         f"{t['contacts_title']}\n"
-        f"• {t['contacts_phone']}: {info['phone']}\n"
-        f"• {t['contacts_email']}: {info['email']}\n"
-        f"• {t['contacts_addr']}: {info['address']}"
+        f"• {t['contacts_phone']}: {c['phone']}\n"
+        f"• {t['contacts_email']}: {c['email']}\n"
+        f"• {t['contacts_addr']}: {c['address']}"
     )
-    await message.answer(text, reply_markup=make_main_kb(current))
+    await message.answer(text, reply_markup=make_main_kb(lang))
 
 @router.message(F.text.in_({LABELS["lang"]["ru"], LABELS["lang"]["ka"]}))
 async def on_change_lang(message: Message):
     uid = message.from_user.id
     new_lang = toggle_lang(uid)
-    # Повідомляємо про переключення (фрази навмисне «дзеркальні»)
     await message.answer(TXT[new_lang]["lang_switched"], reply_markup=make_main_kb(new_lang))
 
 @router.message(F.text.in_({LABELS["back_channel"]["ru"], LABELS["back_channel"]["ka"]}))
-async def on_back_to_channel(message: Message):
-    uid = message.from_user.id
-    current = lang_of(uid)
+async def on_back_channel(message: Message):
+    lang = lang_of(message.from_user.id)
     if CHANNEL_URL:
         kb = InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text=TXT[current]["open_channel"], url=CHANNEL_URL)]]
+            inline_keyboard=[[InlineKeyboardButton(text=TXT[lang]["open_channel"], url=CHANNEL_URL)]]
         )
-        await message.answer(TXT[current]["open_channel"], reply_markup=kb)
+        await message.answer(TXT[lang]["open_channel"], reply_markup=kb)
     else:
-        await message.answer(TXT[current]["no_channel"], reply_markup=make_main_kb(current))
+        await message.answer(TXT[lang]["no_channel"], reply_markup=make_main_kb(lang))
 
-# Будь-який інший текст — ігноруємо (нічого не відповідаємо)
-# Просто не створюємо fallback-хендлер.
-# Якщо дуже треба «абсолютна тиша», залишаємо так.
-# Якщо хочеш логи — розкоментуй нижче:
-# @router.message()
-# async def _noop(_m: Message):
-#     pass
+# Інші повідомлення — повна тиша (ігноруємо)
+@router.message()
+async def _noop(_msg: Message):
+    pass
