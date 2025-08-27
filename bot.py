@@ -1,4 +1,3 @@
-@'
 import os, json, re
 from pathlib import Path
 from aiogram import Bot, Dispatcher, F
