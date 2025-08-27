@@ -10,15 +10,16 @@ from aiogram.types import (
     Message,
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
+    FSInputFile,
 )
 
 # ---------- Files & ENV ----------
 BASE_DIR = Path(__file__).parent
 BANNER_PATH = BASE_DIR / "assets" / "banner.png"  # універсально для GitHub/Render
 DATA_JSON = BASE_DIR / "data.json"
-CHANNEL_URL = os.getenv("CHANNEL_URL")  # наприклад: https://t.me/your_channel
+CHANNEL_URL = os.getenv("CHANNEL_URL")  # напр.: https://t.me/your_channel
 
-# Пам’ять мови в RAM (на кожен процес). За замовчуванням 'ru'.
+# Пам’ять мови (RAM на процес). За замовчуванням 'ru'.
 USER_LANG: Dict[int, str] = {}
 
 # ---------- Text RU/KA ----------
@@ -104,10 +105,8 @@ async def on_start(message: Message):
 
     # 1) Банер (якщо є)
     if BANNER_PATH.exists():
-        await message.answer_photo(
-            photo=BANNER_PATH.open("rb"),
-            caption=TXT[lang]["start_caption"]
-        )
+        photo = FSInputFile(str(BANNER_PATH))
+        await message.answer_photo(photo=photo, caption=TXT[lang]["start_caption"])
     else:
         await message.answer(TXT[lang]["start_caption"])
 
