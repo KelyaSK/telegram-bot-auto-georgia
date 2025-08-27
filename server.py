@@ -11,14 +11,13 @@ from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update
 
-# Імпортуємо роутер з bot.py (там має бути: router = Router())
 from bot import router
 
 # ----- ENV -----
-load_dotenv()  # локально читає .env; на Render читає з Environment Variables
+load_dotenv()  # локально читає .env; на Render — з Environment Variables
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # наприклад: https://telegram-bot-auto-georgia-j6hd.onrender.com
+WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # приклад: https://telegram-bot-auto-georgia-1.onrender.com
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
@@ -36,21 +35,22 @@ log = logging.getLogger("app")
 app = FastAPI()
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
-dp.include_router(router)  # підключаємо хендлери з bot.py
+dp.include_router(router)
 
-# ----- LIFESPAN -----
+# ----- LIFECYCLE -----
 @app.on_event("startup")
 async def on_startup() -> None:
-    log.info("Deleting old webhook...")
+    log.info("Startup: deleting old webhook...")
     await bot.delete_webhook(drop_pending_updates=True)
 
     allowed = ["message", "callback_query"]
-    log.info("Setting webhook to %s", WEBHOOK_URL)
-    ok = await bot.set_webhook(url=WEBHOOK_URL, allowed_updates=allowed)
+    log.info("Setting webhook to %s (allowed_updates=%s)", WEBHOOK_URL, allowed)
+    ok = await bot.set_webhook(url=WEBHOOK_URL, allowed_updates=allowed, max_connections=40)
     if not ok:
         log.error("set_webhook returned False")
 
-    await asyncio.sleep(0.1)
+    # маленька пауза іноді допомагає на холодному старті
+    await asyncio.sleep(0.2)
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
@@ -74,10 +74,12 @@ async def root() -> Dict[str, Any]:
         },
     }
 
+# GET для швидкого чеку у браузері
 @app.get(WEBHOOK_PATH)
 async def webhook_get() -> Dict[str, bool]:
     return {"ok": True}
 
+# POST для Telegram
 @app.post(WEBHOOK_PATH)
 async def webhook_post(request: Request) -> JSONResponse:
     token_in_path = request.url.path.split("/")[-1]
@@ -92,4 +94,5 @@ async def webhook_post(request: Request) -> JSONResponse:
         return JSONResponse({"ok": True})
     except Exception as e:
         log.exception("Error while processing update: %s", e)
+        # Відповідаємо 200, щоб Telegram не ретраїв нескінченно
         return JSONResponse({"ok": False, "error": str(e)})

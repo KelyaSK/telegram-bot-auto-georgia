@@ -3,10 +3,10 @@ import json
 from pathlib import Path
 
 from aiogram import Router, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 
-# --- Кнопки / клавіатура ---
+# --- Клавіатура ---
 MAIN_KB = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="🔁 Сменить язык")]
@@ -19,10 +19,7 @@ MAIN_KB = ReplyKeyboardMarkup(
 router = Router()
 
 def read_contacts() -> dict:
-    """
-    Читає контакти з data.json, який лежить поряд із bot.py.
-    Повертає словник зі значеннями або дефолтні «—» у разі помилки.
-    """
+    """Читає контакти з data.json поруч із файлом."""
     data_path = Path(__file__).parent / "data.json"
     try:
         with data_path.open("r", encoding="utf-8") as f:
@@ -37,32 +34,35 @@ def read_contacts() -> dict:
     except Exception:
         return {"phone": "—", "email": "—", "address": "—"}
 
+@router.message(Command("ping"))
+async def ping(message: Message):
+    await message.answer("pong")
+
 @router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
-    text = (
-        "Привет! Я телеграм-бот.\n\n"
-        "Выберите пункт на клавиатуре ниже 👇"
+async def cmd_start(message: Message):
+    await message.answer(
+        "Привет! Я телеграм-бот.\n\nВыберите пункт на клавиатуре ниже 👇",
+        reply_markup=MAIN_KB,
     )
-    await message.answer(text, reply_markup=MAIN_KB)
 
 @router.message(F.text == "📞 Контакты")
-async def contacts(message: Message) -> None:
+async def contacts(message: Message):
     info = read_contacts()
-    text = (
+    await message.answer(
         "📞 Контакты:\n"
         f"• Телефон: {info['phone']}\n"
         f"• Email: {info['email']}\n"
-        f"• Адрес: {info['address']}"
+        f"• Адрес: {info['address']}",
+        reply_markup=MAIN_KB,
     )
-    await message.answer(text, reply_markup=MAIN_KB)
 
 @router.message(F.text == "🔁 Сменить язык")
-async def change_lang(message: Message) -> None:
+async def change_lang(message: Message):
     await message.answer(
         "Пока доступен русский. Версия на ქართულ — в разработке 🙂",
         reply_markup=MAIN_KB,
     )
 
 @router.message()
-async def fallback(message: Message) -> None:
+async def fallback(message: Message):
     await message.answer("Выберите пункт на клавиатуре ниже", reply_markup=MAIN_KB)
