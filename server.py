@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Any, Dict
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
@@ -16,7 +16,7 @@ from bot import router
 # ----- ENV -----
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # ПОВИННО БУТИ без /webhook і без токена! Напр.: https://telegram-bot-auto-georgia-1.onrender.com
+WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # напр.: https://telegram-bot-auto-georgia.onrender.com
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is not set")
@@ -37,12 +37,8 @@ dp = Dispatcher()
 dp.include_router(router)
 
 async def _set_webhook_safely() -> bool:
-    """
-    Прагматично ставимо вебхук. Не падаємо, якщо Telegram повернув помилку.
-    Повертаємо True/False, щоб показати статус у / та /force_set_webhook.
-    """
+    """Ставимо вебхук, не падаючи при помилці, повертаємо успіх True/False."""
     try:
-        # Скидаємо старий вебхук і ставимо новий
         log.info("Deleting old webhook...")
         await bot.delete_webhook(drop_pending_updates=True)
         await asyncio.sleep(0.1)
@@ -60,8 +56,7 @@ async def _set_webhook_safely() -> bool:
 # ----- LIFECYCLE -----
 @app.on_event("startup")
 async def on_startup() -> None:
-    # Не валимо сервіс, навіть якщо set_webhook не пройшов.
-    # Сервіс підніметься, і ти зможеш поставити вебхук руками або через /force_set_webhook.
+    # Не валимо сервіс, навіть якщо set_webhook не вдався.
     await _set_webhook_safely()
     await asyncio.sleep(0.2)
 
@@ -76,7 +71,7 @@ async def root() -> Dict[str, Any]:
     return {
         "status": "ok",
         "webhook": {
-            "expected": WEBHOOK_URL,  # для наочності
+            "expected": WEBHOOK_URL,
             "url": info.url,
             "has_custom_certificate": info.has_custom_certificate,
             "pending_update_count": info.pending_update_count,
@@ -88,29 +83,32 @@ async def root() -> Dict[str, Any]:
         },
     }
 
+# Дамо 200 на HEAD / — деякі монітори шлють HEAD (як curl -I)
+@app.head("/")
+async def root_head() -> Response:
+    return Response(status_code=200)
+
+# Простий health-check для моніторингу
+@app.get("/health")
+async def health() -> Dict[str, bool]:
+    return {"ok": True}
+
+# Ручне форс-ставлення вебхука (на випадок збоїв)
 @app.get("/force_set_webhook")
 async def force_set_webhook() -> Dict[str, Any]:
-    """
-    Ручний виклик: /force_set_webhook
-    Спробувати поставити вебхук ще раз і повернути статус.
-    """
     ok = await _set_webhook_safely()
     info = await bot.get_webhook_info()
     return {
         "forced": ok,
-        "webhook": {
-            "expected": WEBHOOK_URL,
-            "url": info.url,
-            "last_error_message": info.last_error_message,
-        },
+        "webhook": {"expected": WEBHOOK_URL, "url": info.url, "last_error_message": info.last_error_message},
     }
 
-# GET для швидкого чеку у браузері
+# GET для швидкого чеку у браузері (той самий шлях, що і POST)
 @app.get(WEBHOOK_PATH)
 async def webhook_get() -> Dict[str, bool]:
     return {"ok": True}
 
-# POST для Telegram
+# POST — прийом апдейтів Telegram
 @app.post(WEBHOOK_PATH)
 async def webhook_post(request: Request) -> JSONResponse:
     token_in_path = request.url.path.split("/")[-1]
@@ -125,4 +123,5 @@ async def webhook_post(request: Request) -> JSONResponse:
         return JSONResponse({"ok": True})
     except Exception as e:
         log.exception("Error while processing update: %s", e)
+        # Повертаємо 200, щоб Telegram не спамив ретраями
         return JSONResponse({"ok": False, "error": str(e)})
