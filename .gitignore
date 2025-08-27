@@ -1,6 +1,22 @@
-@'
+# Virtual environment
+venv/
 .venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Environment variables
 .env
-'@ | Set-Content -Encoding UTF8 .gitignore
+
+# System files
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PyCharm / VSCode
+.idea/
+.vscode/
