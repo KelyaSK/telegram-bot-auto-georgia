@@ -1,20 +1,6 @@
-# Віртуальне середовище
+@'
 .venv/
-venv/
-
-# Кеші
 __pycache__/
 *.pyc
-*.pyo
-
-# Системні файли
-.DS_Store
-Thumbs.db
-
-# Налаштування IDE
-.vscode/
-.idea/
-
-# Секрети (не пушимо!)
 .env
-
+'@ | Set-Content -Encoding UTF8 .gitignore

@@ -1,10 +1,10 @@
+@'
 {
   "title": "Контактная информация",
   "items": [
-    { "name": "Телефон",  "value": "+995 555 12 34 56" },
-    { "name": "Telegram", "value": "@AutoGeorgia", "url": "https://t.me/AutoGeorgia" },
-    { "name": "WhatsApp", "value": "+995 555 12 34 56", "url": "https://wa.me/995555123456" },
-    { "name": "Адрес",   "value": "Тбилиси, ул. Руставели, 10" },
-    { "name": "График",  "value": "Пн–Сб 10:00–19:00" }
+    { "name": "Телефон",  "value": "+995 599 00 00 00", "url": "https://wa.me/995599000000" },
+    { "name": "Email",    "value": "autosale@example.com" },
+    { "name": "Адрес",    "value": "Тбилиси, ул. Пример, 1" }
   ]
 }
+'@ | Set-Content -Encoding UTF8 data.json
