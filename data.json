@@ -1,8 +1,5 @@
 {
-  "title": "Контактная информация",
-  "items": [
-    { "name": "Телефон", "value": "+995 599 00 00 00", "url": "https://wa.me/995599000000" },
-    { "name": "Email",   "value": "autosale@example.com" },
-    { "name": "Адрес",   "value": "Тбилиси, ул. Пример, 1" }
-  ]
+  "phone": "+995 599 123 456",
+  "email": "info@autogeorgia.ge",
+  "address": "г. Тбилиси, ул. Руставели 10"
 }
