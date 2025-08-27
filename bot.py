@@ -1,64 +1,68 @@
 # bot.py
-import os
 import json
-from aiogram import Bot, Dispatcher, Router, F
-from aiogram.client.default import DefaultBotProperties
-from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
+from pathlib import Path
 
-# === BOT ===
-BOT_TOKEN = os.environ["BOT_TOKEN"]  # задається у Render -> Environment
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
-dp = Dispatcher()
+from aiogram import Router, F
+from aiogram.filters import CommandStart
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+
+# --- Кнопки / клавіатура ---
+MAIN_KB = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="🔁 Сменить язык")]
+    ],
+    resize_keyboard=True,
+    input_field_placeholder="Выберите пункт...",
+)
+
+# Експортуємо роутер — його підхоплює server.py
 router = Router()
-dp.include_router(router)
 
-# === utils ===
-def load_contacts() -> dict:
+def read_contacts() -> dict:
     """
-    Читаємо дані з data.json (телефон, email, адрес).
-    Якщо ключів немає — повертаємо N/A, щоб бот не падав.
+    Читає контакти з data.json, який лежить поряд із bot.py.
+    Повертає словник зі значеннями або дефолтні «—» у разі помилки.
     """
+    data_path = Path(__file__).parent / "data.json"
     try:
-        with open("data.json", "r", encoding="utf-8") as f:
+        with data_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
+            if not isinstance(data, dict):
+                raise ValueError("data.json must contain a JSON object")
+            return {
+                "phone": data.get("phone", "—"),
+                "email": data.get("email", "—"),
+                "address": data.get("address", "—"),
+            }
     except Exception:
-        data = {}
-    return {
-        "phone": data.get("phone", "N/A"),
-        "email": data.get("email", "N/A"),
-        "address": data.get("address", "N/A"),
-    }
+        return {"phone": "—", "email": "—", "address": "—"}
 
-def main_menu() -> ReplyKeyboardMarkup:
-    kb = [
-        [KeyboardButton(text="📞 Контакты")],
-        [KeyboardButton(text="🔁 Сменить язык")],
-    ]
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-
-# === handlers ===
-@router.message(F.text == "/start")
-async def cmd_start(message: Message):
-    await message.answer(
-        "👋 Добро пожаловать!\nНажмите «Контакты», чтобы получить контактную информацию.",
-        reply_markup=main_menu(),
+@router.message(CommandStart())
+async def cmd_start(message: Message) -> None:
+    text = (
+        "Привет! Я телеграм-бот.\n\n"
+        "Выберите пункт на клавиатуре ниже 👇"
     )
+    await message.answer(text, reply_markup=MAIN_KB)
 
 @router.message(F.text == "📞 Контакты")
-async def show_contacts(message: Message):
-    c = load_contacts()
+async def contacts(message: Message) -> None:
+    info = read_contacts()
     text = (
-        f"📱 Телефон: {c['phone']}\n"
-        f"✉️ Email: {c['email']}\n"
-        f"📍 Адрес: {c['address']}"
+        "📞 Контакты:\n"
+        f"• Телефон: {info['phone']}\n"
+        f"• Email: {info['email']}\n"
+        f"• Адрес: {info['address']}"
     )
-    await message.answer(text, reply_markup=main_menu())
+    await message.answer(text, reply_markup=MAIN_KB)
 
 @router.message(F.text == "🔁 Сменить язык")
-async def change_lang(message: Message):
-    await message.answer("Пока доступен русский. Версия на ქართულ — в разработке 🙂")
+async def change_lang(message: Message) -> None:
+    await message.answer(
+        "Пока доступен русский. Версия на ქართულ — в разработке 🙂",
+        reply_markup=MAIN_KB,
+    )
 
-# За замовчуванням на будь-який інший текст:
 @router.message()
-async def fallback(message: Message):
-    await message.answer("Выберите пункт на клавиатуре ниже.", reply_markup=main_menu())
+async def fallback(message: Message) -> None:
+    await message.answer("Выберите пункт на клавиатуре ниже", reply_markup=MAIN_KB)
