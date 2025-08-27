@@ -1,4 +1,4 @@
-# Virtual environment
+# Virtual env
 venv/
 .venv/
 
@@ -8,15 +8,14 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Environment variables
+# Secrets
 .env
 
-# System files
-*.log
+# Editors
+.vscode/
+.idea/
+
+# OS junk
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# PyCharm / VSCode
-.idea/
-.vscode/

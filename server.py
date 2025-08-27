@@ -3,25 +3,24 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from aiogram.types import Update
 from dotenv import load_dotenv
-from bot import bot, dp  # імпортуємо готові bot & dp
+from bot import bot, dp
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN    = os.getenv("BOT_TOKEN")
-WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # напр. https://your-app.onrender.com
+WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # наприклад: https://your-app.onrender.com
 
 if not BOT_TOKEN:
-    raise SystemExit("❌ BOT_TOKEN не задан у змінних середовища")
+    raise SystemExit("❌ BOT_TOKEN не задан")
 if not WEBHOOK_BASE:
-    raise SystemExit("❌ WEBHOOK_BASE не задан у змінних середовища")
+    raise SystemExit("❌ WEBHOOK_BASE не задан")
 
-# Валідація базового URL
 BASE = WEBHOOK_BASE.rstrip("/")
 if "/webhook" in BASE:
-    raise SystemExit(f"❌ WEBHOOK_BASE має бути лише базовим доменом без /webhook: {WEBHOOK_BASE}")
+    raise SystemExit(f"❌ WEBHOOK_BASE має бути без /webhook: {WEBHOOK_BASE}")
 if not BASE.startswith("https://"):
-    raise SystemExit(f"❌ WEBHOOK_BASE має починатися з https://, зараз: {WEBHOOK_BASE}")
+    raise SystemExit(f"❌ WEBHOOK_BASE повинен починатися з https://, зараз: {WEBHOOK_BASE}")
 
 WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
 WEBHOOK_URL  = f"{BASE}{WEBHOOK_PATH}"
@@ -45,8 +44,8 @@ async def health():
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):
     try:
-        data = await request.json()
-        update = Update.model_validate(data)
+        payload = await request.json()
+        update = Update.model_validate(payload)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Bad update: {e}")
     await dp.feed_update(bot, update)

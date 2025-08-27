@@ -1,27 +1,39 @@
-import os, json, re
+import os
+import json
+import re
 from pathlib import Path
+
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command
 from aiogram.types import (
-    Message, InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardMarkup, KeyboardButton
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    CallbackQuery,
 )
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from aiogram.types.input_file import FSInputFile, BufferedInputFile
 import aiohttp
 
-BOT_TOKEN     = os.getenv("BOT_TOKEN")
+# === ENV ===
+BOT_TOKEN     = os.getenv("BOT_TOKEN")                        # обов’язково в Render → Environment
 CHANNEL_URL   = os.getenv("CHANNEL_URL", "https://t.me/your_channel")
-ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")  # optional
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")                    # опціонально
 START_IMAGE_PATH = Path(os.getenv("START_IMAGE_PATH", "assets/banner.png"))
 START_IMAGE_URL  = os.getenv("START_IMAGE_URL", "https://i.imgur.com/3ZQ3ZyK.png")  # резервний URL
 
+if not BOT_TOKEN:
+    raise SystemExit("BOT_TOKEN is not set")
+
+# === aiogram ===
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp  = Dispatcher()
 
-# ---- локалізація ----
+# === i18n (RU/KA) ===
 TXT = {
     "ru": {
         "welcome": "👋 Добро пожаловать!\nНажмите «Start» и получите контакты и помощь по авто 🚘",
@@ -61,8 +73,10 @@ TXT = {
     }
 }
 USER_LANG: dict[int, str] = {}
-def get_lang(uid: int) -> str: return USER_LANG.get(uid, "ru")
+def get_lang(uid: int) -> str:
+    return USER_LANG.get(uid, "ru")
 
+# === keyboards ===
 def main_menu(lang="ru") -> ReplyKeyboardMarkup:
     t = TXT[lang]
     kb = ReplyKeyboardBuilder()
@@ -94,7 +108,8 @@ def share_phone_kb(lang="ru") -> ReplyKeyboardMarkup:
         resize_keyboard=True
     )
 
-def load_contacts_raw():
+# === data.json ===
+def load_contacts_raw() -> dict:
     try:
         with open("data.json", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -116,7 +131,7 @@ def render_contacts_text(data: dict, lang="ru") -> str:
             else:
                 lines.append(f"• <b>{name}:</b> {value or '—'}")
         return "\n".join(lines) if len(lines) > 2 else "—"
-    # fallback old schema
+    # fallback для старої схеми
     phone   = data.get("phone", "—")
     email   = data.get("email", "—")
     address = data.get("address", "—")
@@ -124,27 +139,36 @@ def render_contacts_text(data: dict, lang="ru") -> str:
             f"✉️ <b>Email:</b> {email}\n"
             f"📍 <b>Адрес:</b> {address}")
 
+# === media ===
 async def send_start_image(message: Message, caption: str, lang="ru"):
     # 1) локально
     if START_IMAGE_PATH.exists():
         try:
-            await message.answer_photo(photo=FSInputFile(START_IMAGE_PATH), caption=caption, reply_markup=main_menu(lang))
+            await message.answer_photo(
+                photo=FSInputFile(START_IMAGE_PATH),
+                caption=caption,
+                reply_markup=main_menu(lang)
+            )
             return
         except Exception:
             pass
-    # 2) по URL (резерв)
+    # 2) резервний URL
     try:
         async with aiohttp.ClientSession() as sess:
             async with sess.get(START_IMAGE_URL, timeout=20) as resp:
                 if resp.status == 200:
                     data = await resp.read()
-                    await message.answer_photo(photo=BufferedInputFile(data, filename="banner.jpg"),
-                                               caption=caption, reply_markup=main_menu(lang))
+                    await message.answer_photo(
+                        photo=BufferedInputFile(data, filename="banner.jpg"),
+                        caption=caption,
+                        reply_markup=main_menu(lang)
+                    )
                     return
     except Exception:
         pass
     await message.answer(TXT[lang]["img_error"], reply_markup=main_menu(lang))
 
+# === handlers ===
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
     lang = get_lang(message.from_user.id)
@@ -166,8 +190,8 @@ async def change_lang(message: Message):
     await message.answer(TXT[lang]["lang_pick"], reply_markup=lang_picker_kb())
 
 @dp.callback_query(F.data.startswith("lang:"))
-async def lang_selected(cb):
-    lang = cb.data.split(":")[1]
+async def lang_selected(cb: CallbackQuery):
+    lang = cb.data.split(":", 1)[1]
     USER_LANG[cb.from_user.id] = lang
     await cb.message.answer(TXT[lang]["menu_hint"], reply_markup=main_menu(lang))
     await cb.answer("OK")
@@ -207,4 +231,3 @@ async def got_phone_text(message: Message):
         except Exception:
             pass
     await message.answer(TXT[lang]["left_ok"], reply_markup=main_menu(lang))
-'@ | Set-Content -Encoding UTF8 bot.py
