@@ -1,24 +1,19 @@
-import json
+# bot.py
+import json, os
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.client.default import DefaultBotProperties
 
-import os
-
 BOT_TOKEN = os.environ["BOT_TOKEN"]
-
-# Бот з HTML за замовчуванням
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 router = Router()
 dp.include_router(router)
 
-# === Завантажуємо контакти з data.json ===
 def load_contacts():
     with open("data.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
-# === Меню ===
 def main_menu():
     kb = [
         [KeyboardButton(text="📞 Контакти")],
@@ -26,7 +21,6 @@ def main_menu():
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
-# === Хендлери ===
 @router.message(F.text == "/start")
 async def cmd_start(message: Message):
     await message.answer(
