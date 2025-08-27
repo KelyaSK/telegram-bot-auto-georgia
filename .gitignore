@@ -38,3 +38,7 @@ venv/
 __pycache__/
 .env
 *.log
+venv/
+__pycache__/
+.env
+*.log
