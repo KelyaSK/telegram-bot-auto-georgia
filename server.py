@@ -1,5 +1,5 @@
-@'
-import os, logging
+import os
+import logging
 from fastapi import FastAPI, Request, HTTPException
 from aiogram.types import Update
 from dotenv import load_dotenv
@@ -9,7 +9,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN    = os.getenv("BOT_TOKEN")
-WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # напр. https://telegram-bot-auto-georgia-xxxx.onrender.com
+WEBHOOK_BASE = os.getenv("WEBHOOK_BASE")  # напр. https://your-app.onrender.com
 
 if not BOT_TOKEN:
     raise SystemExit("❌ BOT_TOKEN не задан у змінних середовища")
@@ -51,4 +51,3 @@ async def telegram_webhook(request: Request):
         raise HTTPException(status_code=400, detail=f"Bad update: {e}")
     await dp.feed_update(bot, update)
     return {"ok": True}
-'@ | Set-Content -Encoding UTF8 server.py
