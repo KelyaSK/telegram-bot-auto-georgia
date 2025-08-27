@@ -15,14 +15,13 @@ from aiogram.types import (
 
 # ---------- Files & ENV ----------
 BASE_DIR = Path(__file__).parent
-BANNER_PATH = BASE_DIR / "assets" / "banner.png"  # універсально для GitHub/Render
+BANNER_PATH = BASE_DIR / "assets" / "banner.png"
 DATA_JSON = BASE_DIR / "data.json"
-CHANNEL_URL = os.getenv("CHANNEL_URL")  # напр.: https://t.me/your_channel
+CHANNEL_URL = os.getenv("CHANNEL_URL")
 
-# Пам’ять мови (RAM на процес). За замовчуванням 'ru'.
 USER_LANG: Dict[int, str] = {}
 
-# ---------- Text RU/KA ----------
+# ---------- Texts ----------
 TXT = {
     "ru": {
         "start_caption": "👋 Добро пожаловать!\nНажмите «/start» и получите контакты и помощь по авто 🚗",
@@ -47,7 +46,7 @@ TXT = {
         "contacts_phone": "ტელეფონი",
         "contacts_email": "იმეილი",
         "contacts_addr": "მისამართი",
-        "lang_switched": "ენა შეიცვალა რუსულზე.",
+        "lang_switched": "ენა შეიცვალა русულზე.",
         "open_channel": "არხის გახსნა",
         "no_channel": "არხის ბმული არ არის მითითებული.",
         "placeholder": "აირჩიეთ პუნქტი...",
@@ -103,15 +102,15 @@ async def on_start(message: Message):
     lang = lang_of(uid)
     kb = make_main_kb(lang)
 
-    # 1) Банер (якщо є)
     if BANNER_PATH.exists():
         photo = FSInputFile(str(BANNER_PATH))
-        await message.answer_photo(photo=photo, caption=TXT[lang]["start_caption"])
+        await message.answer_photo(
+            photo=photo,
+            caption=TXT[lang]["start_caption"],
+            reply_markup=kb   # <-- клавіатура тут
+        )
     else:
-        await message.answer(TXT[lang]["start_caption"])
-
-    # 2) Показати клавіатуру (прикріплена знизу)
-    await message.answer(" ", reply_markup=kb)
+        await message.answer(TXT[lang]["start_caption"], reply_markup=kb)
 
 @router.message(Command("ping"))
 async def on_ping(message: Message):
@@ -148,7 +147,7 @@ async def on_back_channel(message: Message):
     else:
         await message.answer(TXT[lang]["no_channel"], reply_markup=make_main_kb(lang))
 
-# Інші повідомлення — повна тиша (ігноруємо)
+# Інші повідомлення — повна тиша
 @router.message()
 async def _noop(_msg: Message):
     pass
