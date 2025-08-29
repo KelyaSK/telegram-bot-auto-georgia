@@ -10,23 +10,22 @@ from aiogram.types import (
     Message, CallbackQuery,
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
-    FSInputFile,
 )
+from aiogram.types.input_file import FSInputFile  # правильний імпорт для aiogram v3
 
 # ---------- Files & ENV ----------
 BASE_DIR = Path(__file__).parent
-BANNER_PATH = BASE_DIR / "assets" / "banner.png"   # універсально для GitHub/Render
+BANNER_PATH = BASE_DIR / "assets" / "banner.png"
 DATA_JSON   = BASE_DIR / "data.json"
-CHANNEL_URL = os.getenv("CHANNEL_URL")             # напр.: https://t.me/your_channel
+CHANNEL_URL = os.getenv("CHANNEL_URL")  # напр.: https://t.me/your_channel
 
-# Зберігаємо вибір мови в оперативній пам'яті процесу (після рестарту збивається)
+# Зберігаємо вибір мови в оперативній пам'яті (після рестарту збивається)
 USER_LANG: Dict[int, str] = {}  # 'ru' | 'ka' | 'en'
 
 # ---------- Тексти для RU / KA / EN ----------
 TXT = {
     "ru": {
         "start_caption": (
-            "👋 Добро пожаловать!\n\n"
             "Автотехника из США в Грузию — быстро и надёжно 🚢🇺🇸\n"
             "Машины, скутеры, квадроциклы и многое другое.\n\n"
             "Все предложения смотрите в нашем канале 📲\n"
@@ -52,7 +51,6 @@ TXT = {
     },
     "ka": {
         "start_caption": (
-            "👋 მოგესალმებით!\n\n"
             "ავტოტექნიკა აშშ-დან საქართველოში — სწრაფად და საიმედოდ 🚢🇺🇸\n"
             "ავტომობილები, სკუტერები, კვადროციკლები და ბევრი სხვა.\n\n"
             "ყველა შეთავაზება იხილეთ ჩვენს არხში 📲\n"
@@ -78,7 +76,6 @@ TXT = {
     },
     "en": {
         "start_caption": (
-            "👋 Welcome!\n\n"
             "We deliver vehicles & power sports from the USA to Georgia — fast and reliable 🚢🇺🇸\n"
             "Cars, jet skis, ATVs and more.\n\n"
             "See all offers in our channel 📲\n"
