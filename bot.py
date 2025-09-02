@@ -11,7 +11,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
 )
-from aiogram.types.input_file import FSInputFile  # правильний імпорт для aiogram v3
+from aiogram.types.input_file import FSInputFile  # для відправки локальних файлів (aiogram v3)
 
 # ---------- Files & ENV ----------
 BASE_DIR = Path(__file__).parent
@@ -19,7 +19,7 @@ BANNER_PATH = BASE_DIR / "assets" / "banner.png"
 DATA_JSON   = BASE_DIR / "data.json"
 CHANNEL_URL = os.getenv("CHANNEL_URL")  # напр.: https://t.me/your_channel
 
-# Зберігаємо вибір мови в оперативній пам'яті (після рестарту збивається)
+# Зберігаємо вибір мови в оперативній пам'яті (скидається при рестарті процесу)
 USER_LANG: Dict[int, str] = {}  # 'ru' | 'ka' | 'en'
 
 # ---------- Тексти для RU / KA / EN ----------
@@ -37,8 +37,6 @@ TXT = {
 
         "contacts_title": "📞 Контакты:",
         "contacts_phone": "Телефон",
-        "contacts_email": "Email",
-        "contacts_addr": "Адрес",
 
         "lang_prompt": "🌐 Выберите язык интерфейса:",
         "lang_set": "Язык переключён на русский 🇷🇺",
@@ -62,8 +60,6 @@ TXT = {
 
         "contacts_title": "📞 კონტაქტები:",
         "contacts_phone": "ტელეფონი",
-        "contacts_email": "იმეილი",
-        "contacts_addr": "მისამართი",
 
         "lang_prompt": "🌐 აირჩიეთ ინტერფეისის ენა:",
         "lang_set": "ენა გადაერთო ქართულზე 🇬🇪",
@@ -87,8 +83,6 @@ TXT = {
 
         "contacts_title": "📞 Contacts:",
         "contacts_phone": "Phone",
-        "contacts_email": "Email",
-        "contacts_addr": "Address",
 
         "lang_prompt": "🌐 Choose interface language:",
         "lang_set": "Language switched to English 🇬🇧",
@@ -119,17 +113,16 @@ def set_lang(uid: int, code: str) -> str:
     return code
 
 def read_contacts() -> Dict[str, Any]:
+    """Зчитуємо дані з data.json. Достатньо поля 'phone' (рядок або кілька рядків)."""
     try:
         data = json.loads(DATA_JSON.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
             raise ValueError
         return {
-            "phone":   data.get("phone", "—"),
-            "email":   data.get("email", "—"),
-            "address": data.get("address", "—"),
+            "phone": data.get("phone", "—"),
         }
     except Exception:
-        return {"phone": "—", "email": "—", "address": "—"}
+        return {"phone": "—"}
 
 def make_main_kb(lang: str) -> ReplyKeyboardMarkup:
     lang = norm_lang(lang)
@@ -177,16 +170,13 @@ async def on_ping(message: Message):
 
 @router.message(F.text.in_({LABELS["contacts"]["ru"], LABELS["contacts"]["ka"], LABELS["contacts"]["en"]}))
 async def on_contacts(message: Message):
+    """Показуємо лише телефони з data.json (без email та адреси)."""
     uid = message.from_user.id
     lang = lang_of(uid)
     t = TXT[lang]
     c = read_contacts()
-    text = (
-        f"{t['contacts_title']}\n"
-        f"• {t['contacts_phone']}: {c['phone']}\n"
-        f"• {t['contacts_email']}: {c['email']}\n"
-        f"• {t['contacts_addr']}: {c['address']}"
-    )
+
+    text = f"{t['contacts_title']}\n• {t['contacts_phone']}: {c['phone']}"
     await message.answer(text, reply_markup=make_main_kb(lang))
 
 @router.message(F.text.in_({LABELS["lang"]["ru"], LABELS["lang"]["ka"], LABELS["lang"]["en"]}))
