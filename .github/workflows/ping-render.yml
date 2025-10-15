@@ -1,0 +1,31 @@
+name: Ping Render Health (Primary + Backup)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # кожні 5 хв
+  workflow_dispatch:        # можливість запуску вручну
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl /health and /
+        run: |
+          set -e
+          BASE_URL="https://telegram-bot-auto-georgia.onrender.com"
+
+          echo "🔹 Checking primary endpoint: $BASE_URL/health"
+          http_code_health=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health")
+          echo "Health check: HTTP $http_code_health"
+
+          echo "🔹 Checking backup endpoint: $BASE_URL/"
+          http_code_root=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/")
+          echo "Root check: HTTP $http_code_root"
+
+          if [ "$http_code_health" -eq 200 ] || [ "$http_code_root" -eq 200 ]; then
+            echo "✅ At least one endpoint is alive."
+            exit 0
+          else
+            echo "❌ Both checks failed."
+            exit 1
+          fi
